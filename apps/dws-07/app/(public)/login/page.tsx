@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@dbp/ps-auth/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoginPage, LoginCredentialsForm, MicrosoftSignInButton } from "@dbp/ui";
-import { ShieldCheck, Lock, Users } from "lucide-react";
 
 export default function LoginRoute() {
   return (
@@ -32,24 +31,6 @@ const SEED_USERS = [
   ] as const;
 
 const DEV_PASSWORD = "dbp-dev-password";
-
-const LOGIN_FEATURES = [
-  {
-    icon: <ShieldCheck size={20} strokeWidth={1.5} />,
-    title: "Role-based access control",
-    description: "Roles and permissions governed by PS.RBAC — zero custom auth code.",
-  },
-  {
-    icon: <Users size={20} strokeWidth={1.5} />,
-    title: "Multi-tenant isolation",
-    description: "Each tenant's data is fully isolated at the platform service layer.",
-  },
-  {
-    icon: <Lock size={20} strokeWidth={1.5} />,
-    title: "Governed platform security",
-    description: "Auth, sessions, and audit wired from Layer 06 platform services.",
-  },
-];
 
 // Session query key must match the key in useAuth() so setQueryData hits the same cache slot.
 const SESSION_QUERY_KEY = ["dbp", "ps-auth", "session"] as const;
@@ -104,16 +85,15 @@ function LoginPageInner() {
   const isFederated = provider === "entra" || provider === "entra-external";
   const subtitle = isFederated
     ? "Sign in with your Microsoft account to continue."
-    : "Use your DigitalQatalyst credentials to access DWS.07.";
+    : "Use one of the demo accounts below to sign in.";
 
   return (
     <LoginPage
       productCode="DWS.07"
-      productName="Your governed platform workspace."
-      tagline="Sign in to access BioTest Diagnostics Servicing — powered by the DBP platform factory."
-      leftOverline="Authenticated access · DWS.07"
-      features={LOGIN_FEATURES}
-      rightOverline="Platform access"
+      productName="Every exam order, one queue."
+      tagline="Track walk-ins, self-bookings, and referrals from intake through to release."
+      leftOverline="Staff access · BioTest Diagnostics"
+      rightOverline="Staff sign-in"
       title="Sign in to BioTest Diagnostics Servicing"
       subtitle={subtitle}
     >
