@@ -1,0 +1,7 @@
+[
+  {
+    "name": "standalone .next/static bundle (N6, warn-baseline; no prior build measured at generation time — tighten this budget once a real build size is known)",
+    "path": ".next/static/**/*.js",
+    "limit": "5 MB"
+  }
+]

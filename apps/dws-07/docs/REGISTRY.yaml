@@ -1,0 +1,438 @@
+# REGISTRY.yaml — DBP Blueprint Library Master Index
+# The scaffold generator reads this. It is the machine-readable source of truth for
+# every stack layer, platform service, shell, feature, and catalog solution.
+# Naming follows L00-L05. Status: stable | beta | planned.
+
+version: 1.3.0
+blueprint_version: platform/v1.5.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE 10-LAYER STACK (the spine). build_mode: once = platform-built & consumed;
+# per_solution = scaffolded each time.
+# ─────────────────────────────────────────────────────────────────────────────
+stack:
+  - layer: 1
+    id: standards
+    name: Standards & Reference Architecture as Code
+    build_mode: once
+    owner: SDO.01
+  - layer: 2
+    id: infra
+    name: Infrastructure as Code
+    build_mode: once
+    owner: SDO.02
+  - layer: 3
+    id: environment
+    name: Environment as Code
+    build_mode: once
+    owner: SDO.02
+  - layer: 4
+    id: pipeline
+    name: Pipeline as Code
+    build_mode: once
+    owner: SDO.02
+  - layer: 5
+    id: policy
+    name: Policy / Security / Compliance as Code
+    build_mode: once
+    owner: SDO.01
+  - layer: 6
+    id: platform-services
+    name: Platform Services as Code
+    build_mode: once
+    owner: SDO.02
+    note: The 10 services below. Built once, wired by ID. NEVER per-solution.
+  - layer: 7
+    id: app-scaffolds
+    name: Application Scaffolds as Code
+    build_mode: per_solution
+    owner: SDO.02
+    note: Shells + feature blueprints. The plug-and-play layer.
+  - layer: 8
+    id: observability
+    name: Observability as Code
+    build_mode: once
+    owner: SDO.03
+  - layer: 9
+    id: ai-engineering
+    name: AI-Assisted Engineering as Code
+    build_mode: once
+    owner: SDO.02
+  - layer: 10
+    id: provisioning
+    name: Provisioning as Code
+    build_mode: once
+    owner: SDO.02
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 06 — PLATFORM SERVICES (build once, consume by ID)
+# ─────────────────────────────────────────────────────────────────────────────
+platform_services:
+  - id: PS.AUTH
+    name: Identity & Authentication
+    atomic_class: integration
+    contract: openapi
+    status: beta
+  - id: PS.RBAC
+    name: Roles & Permissions
+    atomic_class: control
+    contract: openapi
+    status: beta
+  - id: PS.AUDIT
+    name: Audit & Activity Log
+    atomic_class: control
+    contract: openapi
+    status: beta
+  - id: PS.NOTIF
+    name: Notifications
+    atomic_class: integration
+    contract: openapi
+    status: beta
+  - id: PS.SEARCH
+    name: Search
+    atomic_class: integration
+    contract: openapi
+    status: beta
+  - id: PS.WORKFLOW
+    name: Workflow Engine
+    atomic_class: app
+    contract: openapi
+    status: beta
+  - id: PS.EVENTS
+    name: Event Bus
+    atomic_class: integration
+    contract: asyncapi
+    status: beta
+  - id: PS.AI
+    name: AI Service
+    atomic_class: ai
+    contract: openapi
+    status: beta
+    maps_to: DIA.03
+  - id: PS.DATA
+    name: Data Service
+    atomic_class: data
+    contract: openapi
+    status: beta
+    maps_to: DIA.01
+  - id: PS.APIGW
+    name: API Gateway Binding
+    atomic_class: integration
+    contract: config
+    status: beta
+  - id: PS.ORG
+    name: Organizations & Tenancy
+    atomic_class: control
+    contract: openapi
+    status: beta
+  - id: PS.SCHEDULER
+    name: Scheduler
+    atomic_class: integration
+    contract: openapi
+    status: beta
+  - id: PS.QUEUE
+    name: Queue
+    atomic_class: integration
+    contract: openapi
+    status: alpha
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM DATA — durable backing for the 10 Layer-06 services.
+# build_mode: once (the schema is fixed); applied per_solution as the FIRST
+# migration when a new solution DB is provisioned. See
+# docs/01-architecture/02-data-identity/data-architecture.md and ADR-0016/0017/0018/0039.
+# ─────────────────────────────────────────────────────────────────────────────
+persistence:
+  package: "@dbp/platform-db"
+  path: packages/stack/platform-db
+  substrate: postgres            # Supabase-first, Azure-portable (vanilla PG 16)
+  tooling: drizzle               # drizzle-orm + drizzle-kit; postgres.js driver
+  tenancy: pooled-rls            # one DB per solution; RLS on tenant_id; pooled→bridge→silo
+  entity_model: two-mode         # prototype: JSONB entity plane (PS.DATA, ADR-0018, demo-only) |
+                                 # production: relational domain schemas (discovery/workspace/operations,
+                                 # ADR-0039), selected per-solution via manifest `data_model: prototype|relational`
+  status: beta
+  baseline_migrations:           # applied in order to a fresh DB — the "first migration"
+    - migrations/0000_platform_init.sql   # extensions, 11 schemas, 22 tables, indexes, triggers
+    - migrations/0001_platform_rls.sql    # roles, RLS, 14 tenant_isolation policies, grants
+    - migrations/0002_seed.sql            # tenant-alpha, roles, permissions, matrix (idempotent)
+  schemas:                       # one Postgres schema per service + shared platform
+    platform: shared (GUC helpers, extensions)
+    auth: PS.AUTH
+    rbac: PS.RBAC
+    audit: PS.AUDIT
+    notif: PS.NOTIF
+    search: PS.SEARCH
+    workflow: PS.WORKFLOW
+    events: PS.EVENTS
+    ai: PS.AI
+    data: PS.DATA
+    apigw: PS.APIGW
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 07 — STAGE SHELLS
+# Phase 2 consolidation: two canonical shell ids replace the old five.
+#   SH.PUBLIC    = public shell (landing / login / public pages)
+#   SH.WORKSPACE = transaction shell (AppChrome + 3-level nav + SessionGuard)
+# Legacy ids SH.00–SH.04 are kept below for back-compat; the generator maps
+# them via SHELL_ALIAS (SH.00→SH.PUBLIC, SH.01–04→SH.WORKSPACE).
+# ─────────────────────────────────────────────────────────────────────────────
+shells:
+  # ── Canonical two-shell model (Phase 2) ──────────────────────────────────
+  - id: SH.PUBLIC
+    name: Public Shell
+    journey_role: Discover/Select
+    app_type: web
+    component: LandingShell
+    package: "@dbp/shell-landing"
+    composes: [PS.DATA]
+    slots: [hero, features, proof, cta, footer]
+    status: beta
+    note: No SessionGuard. Used for landing pages, login, and public-facing routes.
+  - id: SH.WORKSPACE
+    name: Workspace Shell
+    journey_role: Transact/Deliver/Process
+    app_type: transact
+    component: TransactionShell
+    package: "@dbp/shell-transaction"
+    composes: [PS.AUTH, PS.WORKFLOW, PS.DATA, PS.NOTIF]
+    slots: [main, context]
+    status: beta
+    note: AppChrome top bar + persistent 3-level nav sidebar + SessionGuard.
+  # ── Legacy shell ids (deprecated — kept for back-compat) ─────────────────
+  # New manifests should use SH.PUBLIC or SH.WORKSPACE.
+  # The generator resolves these via SHELL_ALIAS before any component lookup.
+  - id: SH.00
+    name: Landing Shell
+    journey_stage: 0
+    journey_role: Discover
+    app_type: web
+    composes: [PS.DATA, PS.AI]
+    status: beta
+    deprecated: true
+    superseded_by: SH.PUBLIC
+  - id: SH.01
+    name: Marketplace Shell
+    journey_stage: 1
+    journey_role: Select
+    app_type: web
+    composes: [PS.SEARCH, PS.AI, PS.DATA]
+    status: beta
+    deprecated: true
+    superseded_by: SH.WORKSPACE
+  - id: SH.02
+    name: Transaction Workspace Shell
+    journey_stage: 2
+    journey_role: Transact
+    app_type: transact
+    composes: [PS.AUTH, PS.WORKFLOW, PS.DATA, PS.NOTIF]
+    status: beta
+    deprecated: true
+    superseded_by: SH.WORKSPACE
+  - id: SH.03
+    name: Delivery/Admin Master-Detail Shell
+    journey_stage: 3
+    journey_role: Deliver
+    app_type: transact
+    composes: [PS.WORKFLOW, PS.RBAC, PS.AUDIT, PS.NOTIF, PS.DATA]
+    status: beta
+    deprecated: true
+    superseded_by: SH.WORKSPACE
+  - id: SH.04
+    name: Specialist Workbench Shell
+    journey_stage: 4
+    journey_role: Process
+    app_type: transact
+    composes: [PS.AI, PS.DATA, PS.AUDIT]
+    status: beta
+    deprecated: true
+    superseded_by: SH.WORKSPACE
+  - id: SH.WS
+    name: Workspace Shell (legacy alias)
+    journey_stage: 2
+    journey_role: Transact
+    app_type: transact
+    composes: [PS.AUTH, PS.WORKFLOW, PS.DATA, PS.NOTIF]
+    package: "@dbp/shell-workspace"
+    status: beta
+    deprecated: true
+    superseded_by: SH.WORKSPACE
+    note: Legacy id declared by @dbp/shell-workspace (thin re-export of SH.WORKSPACE).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 07 — FEATURE BLUEPRINTS (by atomic class)
+# ─────────────────────────────────────────────────────────────────────────────
+features:
+  # Class 02 — App
+  - { id: APP.F01, name: Entity List Table,            class: app,       stages: [2,3,4], slot: main,            wires_to: [PS.DATA, PS.SEARCH],     status: beta }
+  - { id: APP.F02, name: Entity Detail Panel,          class: app,       stages: [2,3],   slot: context,         wires_to: [PS.DATA, PS.AUDIT],      status: beta }
+  - { id: APP.F03, name: Form Builder,                 class: app,       stages: [2,3,4], slot: main,            wires_to: [PS.DATA, PS.WORKFLOW],   status: beta }
+  - { id: APP.F04, name: Kanban / Pipeline Board,      class: app,       stages: [2,3],   slot: main,            wires_to: [PS.WORKFLOW],            status: beta }
+  - { id: APP.F05, name: Calendar / Scheduler,         class: app,       stages: [2,3],   slot: main,            wires_to: [PS.DATA],                status: beta }
+  - { id: APP.F06, name: Approval Action Surface,      class: app,       stages: [2,3],   slot: context,         wires_to: [PS.WORKFLOW, PS.RBAC],   status: beta }
+  - { id: APP.F07, name: Self-Service Dashboard,       class: app,       stages: [2],     slot: main,            wires_to: [PS.DATA, PS.AI],         status: beta }
+  - { id: APP.F08, name: Case Management Workspace,    class: app,       stages: [3],     slot: main,            wires_to: [PS.WORKFLOW, PS.DATA],   status: beta }
+  - { id: APP.F09, name: Specialist Workbench Surface, class: app,       stages: [4],     slot: workbench,       wires_to: [PS.AI, PS.DATA],         status: beta }
+  - { id: APP.F13, name: Contact / Inquiry Form,       class: app,       stages: [0],     slot: main,            wires_to: [PS.NOTIF],               status: beta }
+  - { id: APP.F19, name: LVE Workspace,                class: app,       stages: [2,3,4], slot: [main, detailContent, workbench], wires_to: [PS.DATA, PS.AUDIT], status: beta }  # unified List-View-Edit; subsumes F01+F02 master-detail
+  - { id: APP.F20, name: Service Catalog,             class: app,       stages: [1,2,3], slot: main,            wires_to: [PS.DATA],                status: beta }  # client-faceted tab-isolated catalogue grid; generalised from DWS.01 drive-grid
+  - { id: APP.F21, name: Workspace Dashboard,         class: app,       stages: [2],     slot: main,            wires_to: [PS.DATA],                status: beta }  # composed personal "My Dashboard" — greeting + tasks + projects + calendar + goals + reminders
+  - { id: APP.F22, name: Service Offering Request, class: app,       stages: [1,2],   slot: main,            wires_to: [PS.DATA],                status: beta }  # request form for marketplace/catalogue items
+  - { id: APP.F23, name: LVE Workflow Binding,    class: app,       stages: [2,3],   slot: [main, context], wires_to: [PS.WORKFLOW, PS.AUTH],   status: beta }  # binds APP.F19 LVE Workspace to PS.WORKFLOW actions
+  - { id: APP.F29, name: Notification Inbox,      class: app,       stages: [1,2,3], slot: main,            wires_to: [PS.NOTIF],               status: beta }  # thin list fed by PS.NOTIF; deliberately not an LVE preset (ruling N3)
+  - { id: APP.F28, name: Data Export & Reporting,   class: app,       stages: [3],     slot: main,            wires_to: [PS.DATA],                status: planned }  # id assigned 2026-07-17 (ruling N23) resolving the former F26 collision with command-palette; not yet specced or built
+  - { id: APP.F24, name: Record Form,             class: app,       stages: [2],     slot: main,            wires_to: [PS.DATA, PS.AUTH],       status: beta }  # config-driven single-page sectioned record-creation form; mounts on "form-basic" layout (record-form-spec-2026-07-12.md)
+  - { id: APP.F27, name: Multi-step Form,         class: app,       stages: [1,2],   slot: main,            wires_to: [PS.DATA, PS.WORKFLOW],   status: beta }  # config-driven guided wizard; step-nav, per-step validation, auto Review step, real autosave; mounts form-guided layout
+  - { id: APP.F25, name: Record Drawer,           class: app,       stages: [2,3,4], slot: context,         wires_to: [PS.DATA, PS.WORKFLOW, PS.AUDIT], status: beta }  # config-driven tabbed detail drawer mounted by entity-list's detailDrawer config; composes APP.F23 for workflow, PS.AUDIT for the audit tab, PS.DATA for comments
+  # Archetype-only features — used by marketplace/home/copilot top-level blocks and
+  # by modules that want card-grid catalogue pages instead of entity-list tables.
+  - { id: APP.F10, name: Catalog Grid,                class: app,       stages: [1],     slot: main,            wires_to: [PS.DATA, PS.SEARCH],     status: beta }
+  - { id: APP.F11, name: Marketplace Item Detail,     class: app,       stages: [1],     slot: main,            wires_to: [PS.DATA],                status: beta }
+  - { id: APP.F12, name: App Home Dashboard,          class: app,       stages: [2],     slot: main,            wires_to: [PS.DATA, PS.AI],         status: beta }
+  - { id: APP.F15, name: Copilot Page,                class: app,       stages: [4],     slot: main,            wires_to: [PS.AI, PS.DATA],         status: beta }
+  - { id: APP.F14, name: Activity Feed,               class: app,       stages: [2,3],   slot: context,         wires_to: [PS.AUDIT],               status: beta }  # promoted 2026-07-21 from @dbp/ui bindings/ (Bindings/Admin resolution)
+  - { id: APP.F16, name: Assistant Panel,             class: app,       stages: [2,3,4], slot: context,         wires_to: [PS.AI],                  status: beta }  # promoted 2026-07-21 from @dbp/ui bindings/; also Family 1's AssistantConversation flagship gap
+  - { id: APP.F17, name: Tenant Switcher,             class: app,       stages: [2,3,4], slot: context,         wires_to: [PS.AUTH],                status: beta }  # promoted 2026-07-21 from @dbp/ui bindings/ (N30 sidebar identity + switcher)
+  - { id: APP.F18, name: Admin Access Matrix,         class: app,       stages: [3],     slot: main,            wires_to: [PS.RBAC],                status: beta }  # promoted 2026-07-21 from @dbp/ui components/
+  - { id: APP.F30, name: Admin Role List,             class: app,       stages: [3],     slot: main,            wires_to: [PS.RBAC],                status: beta }  # promoted 2026-07-21 from @dbp/ui components/
+  - { id: APP.F31, name: Admin User List,             class: app,       stages: [3],     slot: main,            wires_to: [PS.RBAC, PS.AUTH],       status: beta }  # promoted 2026-07-21 from @dbp/ui components/
+  - { id: APP.F32, name: Notification Preference Matrix, class: app,    stages: [2],     slot: main,            wires_to: [PS.NOTIF],               status: beta }  # promoted 2026-07-21 from @dbp/ui components/
+  - { id: APP.F33, name: Search Bar,                  class: app,       stages: [2, 3, 4], slot: main,          wires_to: [PS.SEARCH],              status: beta }  # promoted 2026-07-21 from @dbp/ui bindings/, unblocked by AppChrome search slot
+  - { id: APP.F34, name: Notification Bell,           class: app,       stages: [2, 3, 4], slot: main,          wires_to: [PS.NOTIF],               status: beta }  # promoted 2026-07-21 from @dbp/ui bindings/, unblocked by AppChrome notifications slot
+  - { id: APP.F35, name: Ask Dashboard,                class: app,       stages: [2, 3],  slot: main,            wires_to: [PS.AI],                  status: beta }  # Wave 3 Family 1 build, 2026-07-21
+  - { id: APP.F36, name: Field AI Assist,              class: app,       stages: [2, 3],  slot: main,            wires_to: [PS.AI],                  status: beta }  # Wave 3 Family 1 build, 2026-07-21 (FieldSuggestValue/FieldMultiSuggest/FieldRewrite)
+  # Wave 3 Family 2 — config-governance organisms, 2026-07-22 build, lifted from admin-*.jsx. Registered 2026-07-27
+  # (organism-registration). wires_to derived by grepping each package for real @dbp/ps-*/client imports — empty
+  # where none were found (catalogue purpose text for most confirms "no PS.<X> service exists").
+  - { id: APP.F37, name: Config Detail Panel,          class: app,       stages: [3],     slot: main,            wires_to: [PS.DATA, PS.AUDIT],      status: beta }  # config-governance variant of APP.F02; imports EntityDetail directly (real evidence)
+  - { id: APP.F38, name: Rule Builder,                 class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # UI-only, prop-driven — no PS.RULES service exists (ledger #2, unresolved)
+  - { id: APP.F39, name: Publish Review,               class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # draft-review-publish gate; no @dbp/ps-* client import in package
+  - { id: APP.F40, name: Workflow Builder,             class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # UI-only node-graph editor; no @dbp/ps-* import despite doc referencing PS.WORKFLOW node mapping
+  - { id: APP.F41, name: Effective Access,             class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # buildable against real PS.RBAC per catalogue note, but ships prop-driven (no client import)
+  - { id: APP.F42, name: Feature Flags Admin,          class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # no PS.FLAGS service exists
+  - { id: APP.F43, name: Approval Policy Config,       class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # policy editor, ships prop-driven, no client import
+  - { id: APP.F44, name: Environments Admin,           class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # env cards + deploy dialog, no PS client import
+  - { id: APP.F45, name: Integration Catalogue,        class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # no PS.INTEGRATIONS service exists
+  - { id: APP.F46, name: Integration Detail,           class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # same PS.INTEGRATIONS gap as APP.F45
+  - { id: APP.F47, name: Data Mapping,                 class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # same PS.INTEGRATIONS gap
+  - { id: APP.F48, name: Schema Entity Detail,         class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # no PS.SCHEMA/PS.RELATIONSHIPS service exists
+  - { id: APP.F49, name: Taxonomy Tree,                class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # no PS.TAXONOMY service exists
+  - { id: APP.F50, name: Import Export,                class: app,       stages: [3],     slot: main,            wires_to: [],                       status: beta }  # no PS.IMPORT_EXPORT service exists
+  # Wave 3 Family 3 — workflow-adjacent drawers, 2026-07-22 build. Registered 2026-07-27.
+  - { id: APP.F54, name: Approval Drawer,              class: app,       stages: [2,3],   slot: context,         wires_to: [PS.WORKFLOW],            status: beta }  # real useApprovalWorkflow/@dbp/ps-workflow/client import confirmed in index.tsx
+  # Wave 3 Family 4c — notifications, 2026-07-22 build. Registered 2026-07-27.
+  - { id: APP.F67, name: Notification Digest,          class: app,       stages: [2],     slot: main,            wires_to: [PS.NOTIF],               status: beta }  # real useDigestSettings/@dbp/ps-notif/client import confirmed
+  - { id: APP.F68, name: Notification Drawer,          class: app,       stages: [2,3],   slot: context,         wires_to: [PS.NOTIF],               status: beta }  # wraps notification-inbox (APP.F29, PS.NOTIF); no reimplemented fetch/mark-read logic
+  # Wave 3 Family 4d — fullscreen overlay compositions, 2026-07-22 build. Registered 2026-07-27.
+  - { id: APP.F58, name: Drawer Approval View,         class: app,       stages: [2,3],   slot: context,         wires_to: [PS.WORKFLOW],            status: beta }  # same real @dbp/ps-workflow/client import pattern as APP.F54
+  - { id: APP.F61, name: Fullscreen Bulk Edit,         class: app,       stages: [2,3],   slot: context,         wires_to: [],                       status: beta }  # overlay on fullscreen-modal.tsx primitive, no PS client
+  - { id: APP.F62, name: Fullscreen Compare Records,   class: app,       stages: [2,3],   slot: context,         wires_to: [],                       status: beta }  # same overlay primitive, no PS client
+  - { id: APP.F63, name: Fullscreen Document Review,   class: app,       stages: [2,3],   slot: context,         wires_to: [],                       status: beta }  # same overlay primitive, no PS client
+  # Wave 3 Family 4e — search, 2026-07-22 build. Registered 2026-07-27.
+  - { id: APP.F71, name: Saved Search,                 class: app,       stages: [1,2],   slot: main,            wires_to: [],                       status: beta }  # no PS.SAVED-SEARCH service exists, modeled as Zod config data
+  - { id: APP.F72, name: Search Results Page,          class: app,       stages: [1,2],   slot: main,            wires_to: [PS.SEARCH],              status: beta }  # binds live to PS.SEARCH's useSearch hook (same hook as APP.F33)
+  # Wave 3 Family 4f — collaboration, 2026-07-22 build. Registered 2026-07-27.
+  - { id: APP.F56, name: Collab Calendar,              class: app,       stages: [2,3],   slot: main,            wires_to: [],                       status: beta }  # multi-source calendar; no @dbp/ps-* client import found in package
+  - { id: APP.F57, name: Comment Thread,                class: app,      stages: [2,3],   slot: context,         wires_to: [],                       status: beta }  # "no PS.DATA fetch owned — UI-tier build" per catalogue
+  - { id: APP.F60, name: Forum Post,                   class: app,       stages: [2,3],   slot: main,            wires_to: [],                       status: beta }  # no @dbp/ps-* client import found
+  # Wave 3 Family 4g — identity/account/onboarding, 2026-07-22 build. Registered 2026-07-27. Several are
+  # Amendment-A "blocked-row" builds — full UI shipped against a typed mock client with a visible "not wired"
+  # declaration because the corresponding platform-services/auth mutation does not exist yet.
+  - { id: APP.F51, name: Accept Card,                  class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # first-login set-password; no @dbp/ps-* client import found
+  - { id: APP.F52, name: Account Area,                 class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # tabbed wrapper over security-section+tokens-section, both mocked
+  - { id: APP.F53, name: Account Menu,                 class: app,       stages: [2],     slot: context,         wires_to: [],                       status: beta }  # top-bar dropdown, not yet wired into AppChrome
+  - { id: APP.F55, name: Checklist Card,                class: app,      stages: [2],     slot: main,            wires_to: [],                       status: beta }  # owns local progression state only
+  - { id: APP.F59, name: Err403,                       class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # config-driven granters list, no PS client
+  - { id: APP.F64, name: Invite Modal,                 class: app,       stages: [3],     slot: context,         wires_to: [],                       status: beta }  # Amendment A blocked-row: no create-user mutation exists, mock client only
+  - { id: APP.F65, name: MFA Challenge,                class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # Amendment A blocked-row: no TOTP/MFA code in platform-services/auth, mock client only
+  - { id: APP.F66, name: MFA Enrol,                    class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # same PS.AUTH absence as APP.F65, mock client only
+  - { id: APP.F69, name: Profile Setup,                class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # thin WizardDefinition wrapper over multi-step-form; no direct PS client import
+  - { id: APP.F70, name: Reset Request Form,           class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # combined password-reset request/form; no @dbp/ps-* client import found
+  - { id: APP.F73, name: Security Section,             class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # Amendment A blocked-row: both halves mocked (no change-password mutation, no session-list API)
+  - { id: APP.F74, name: Session Expired,              class: app,       stages: [2],     slot: main,            wires_to: [PS.AUTH],                status: beta }  # real login()/verifySessionToken from @dbp/ps-auth/client confirmed
+  - { id: APP.F75, name: SSO Pick,                     class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # composes real login-page/microsoft-sign-in-button components; no direct PS client import in this package
+  - { id: APP.F76, name: Tokens Section,                class: app,      stages: [2],     slot: main,            wires_to: [],                       status: beta }  # Amendment A blocked-row: no API-token issuance code in platform-services/auth, mock client only
+  - { id: APP.F77, name: Tour Stage,                   class: app,       stages: [2],     slot: main,            wires_to: [],                       status: beta }  # owns local progression state only
+  - { id: APP.F26, name: Command Palette,              class: app,      stages: [2],     slot: chrome-mount,    wires_to: [],                       status: beta }  # registered 2026-07-27; chrome-mount wiring (never routed page, no layouts) -- sources commands from solution nav sections, no PS.* import in package; collision w/ backlog row 221 RESOLVED, Data Export & Reporting reassigned to APP.F78
+  # Class 03 — Analytics
+  - { id: ANL.F01, name: Dashboard Widget Grid,        class: analytics, stages: [0,1,2,3,4], slot: main,        wires_to: [PS.DATA],                status: beta }
+  - { id: ANL.F02, name: Analytics Chart Panel,        class: analytics, stages: [2,3,4], slot: main,            wires_to: [PS.DATA],                status: beta }
+  - { id: ANL.F03, name: KPI Scorecard,                class: analytics, stages: [2,3],   slot: main,            wires_to: [PS.DATA],                status: beta }
+  - { id: ANL.F04, name: Exception / Alert View,       class: analytics, stages: [3,4],   slot: main,            wires_to: [PS.NOTIF],               status: beta }
+  - { id: ANL.F05, name: SLA Tracking View,            class: analytics, stages: [3],     slot: main,            wires_to: [PS.WORKFLOW],            status: beta }
+  - { id: ANL.F06, name: Example Report,               class: analytics, stages: [3,4],   slot: main,            wires_to: [PS.DATA],                status: beta }
+  - { id: ANL.F10, name: Executive Dashboard,          class: analytics, stages: [3],     slot: main,            wires_to: [],                       status: beta }  # Wave 3 build 2026-07-22, registered 2026-07-27; verbatim port (DR-DASH-PORT), takes data not PS.DATA query config
+
+# Thin presentational bindings — render a PS.* directly, NOT standalone features.
+# Live in shared/ui, not the feature catalogue.
+# NOTE (2026-07-21): ActivityFeed, AssistantPanel, TenantSwitcher were promoted
+# to organisms (APP.F14/F16/F17 above) per the Bindings/Admin resolution in
+# wave3-build-plan.md — they owned real fetch/mutation state, so they were
+# mis-filed here. NotificationBell and SearchBar remain here (blocked on an
+# AppChrome layer-boundary conflict — see wave3-build-plan.md "AppChrome
+# default-wiring conflict" note); PermissionGate stays, confirmed stateless.
+bindings:
+  - { id: NotificationBell, renders: PS.NOTIF, mounts: [all] }
+  - { id: SearchBar,       renders: PS.SEARCH, mounts: [SH.01, SH.02] }
+  - { id: PermissionGate,  renders: PS.RBAC,   mounts: [any] }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATALOG — DXP / DWS / DIA / SDO L02 solutions (the real solution list)
+# ─────────────────────────────────────────────────────────────────────────────
+catalog:
+  DXP:
+    name: Digital Experience Platform
+    solutions:
+      - { id: DXP.01A, name: Digital Channels (Web),      status: beta }  # second-solution proof — Phase 7
+      - { id: DXP.01B, name: Digital Channels (Social),   status: planned }
+      - { id: DXP.01C, name: Digital Channels (Mobile),   status: planned }
+      - { id: DXP.01D, name: Digital Channels (Physical),  status: planned }
+      - { id: DXP.02,  name: Digital Content & Experience, status: planned }
+      - { id: DXP.03,  name: Digital Relationships,        status: planned }
+      - { id: DXP.04,  name: Digital MarCom,               status: planned }
+      - { id: DXP.05,  name: Digital CPQ,                  status: planned }
+      - { id: DXP.06,  name: Digital AfterCare,            status: planned }
+  DWS:
+    name: Digital Work System
+    solutions:
+      - { id: DWS.01,  name: Digital Workspace,            status: planned }
+      - { id: DWS.02A, name: Digital Core Orchestrator,    status: planned }
+      - { id: DWS.02B, name: Digital Core Area 01,         status: planned }
+      - { id: DWS.02C, name: Digital Core Area 02,         status: planned }
+      - { id: DWS.02X, name: Digital Core Area 0X,         status: planned }
+      - { id: DWS.03,  name: Digital GPRC,                 status: beta }  # STC Bank GPRC — scaffolded (branch claude/dws-03-gprc-sharavi)
+      - { id: DWS.04,  name: Digital ERP,                  status: beta }  # reference solution — built Phase 6
+      - { id: DWS.05,  name: Digital WFMS,                 status: beta }  # tested clone
+      - { id: DWS.06,  name: Workflow Factory Demo,        status: beta }  # PS.WORKFLOW engine E2E demo — apps/wfd-01
+  DIA:
+    name: Digital Intelligence & Analytics
+    solutions:
+      - { id: DIA.01, name: DataOps,      status: planned }
+      - { id: DIA.02, name: AnalyticsOps, status: beta }  # tested clone
+      - { id: DIA.03, name: AIOps,        status: planned }
+  SDO:
+    name: SecDevOps
+    solutions:
+      - { id: SDO.01, name: GovernTech,  status: planned }
+      - { id: SDO.02, name: DevOps XaC,  status: planned }
+      - { id: SDO.03, name: TechOps,     status: planned }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOURNEY (orthogonal axis) + ATOMIC CLASSES (taxonomy within layers 6-7)
+# ─────────────────────────────────────────────────────────────────────────────
+journey_stages:
+  - { stage: 0, name: Landing Page,                          role: Discover, app_type: web }
+  - { stage: 1, name: Items Marketplace,                     role: Select,   app_type: web }
+  - { stage: 2, name: End User / Partner Transaction,        role: Transact, app_type: transact }
+  - { stage: 3, name: Delivery, Relationship & Admin,        role: Deliver,  app_type: transact }
+  - { stage: 4, name: Specialised Back-end / Niche,          role: Process,  app_type: transact }
+
+atomic_classes:
+  - { n: 1, id: data,        automates: Data foundations }
+  - { n: 2, id: app,         automates: Work execution }
+  - { n: 3, id: analytics,   automates: Insight presentation }
+  - { n: 4, id: ai,          automates: Intelligent work }
+  - { n: 5, id: pipeline,    automates: Delivery & execution flow,    maps_to_layer: 4 }
+  - { n: 6, id: environment, automates: Runtime environments,         maps_to_layer: 3 }
+  - { n: 7, id: integration, automates: Connection & orchestration }
+  - { n: 8, id: control,     automates: Governance & assurance }

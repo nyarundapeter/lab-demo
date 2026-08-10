@@ -1,0 +1,30 @@
+# Dependencies (resolved from committed packages/*.tgz via .pnpmfile.cjs)
+node_modules/
+
+# Next.js build output
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Vitest coverage output
+/coverage/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local scratch / logs (root-anchored so nested source dirs named "workspace" aren't ignored)
+/workspace/
+/scratch/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: packages/*.tgz ARE committed — they are the @dbp/* distribution
+# (committed-tarball model). Do not ignore them.
+
+# Playwright MCP session artifacts
+.playwright-mcp/

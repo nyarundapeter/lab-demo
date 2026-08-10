@@ -1,0 +1,45 @@
+@import "@dbp/design-tokens/base.css";
+@import "@dbp/design-tokens/theme.css";
+@import "./theme-overrides.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── App-level token supplements ──────────────────────────────────────────────
+ * --mesh-hero-dark is referenced by @dbp/ui LoginPage but is not yet in the
+ * shared design-tokens package. Defined here until it is promoted upstream. */
+:root {
+  --mesh-hero-dark: radial-gradient(
+    ellipse at 20% 80%,
+    oklch(0.22 0.06 264 / 0.9) 0%,
+    oklch(0.18 0.05 264) 40%,
+    oklch(0.12 0.04 264) 70%,
+    oklch(0.10 0.03 264) 100%
+  );
+}
+
+/* ── Thin scrollbar (DQ minimal aesthetic) ────────────────────────────────────
+ * 3 px wide, transparent track, 12 % opacity navy thumb. Matches the minimal
+ * brand aesthetic across Chrome/Edge/Safari (webkit) and Firefox. */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.13 0.04 264 / 0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.13 0.04 264 / 0.25); }
+* { scrollbar-width: thin; scrollbar-color: oklch(0.13 0.04 264 / 0.12) transparent; }
+
+/* === @dbp package overrides ================================================
+ * Local overrides of styles shipped by an @dbp package. KEEP THIS SECTION
+ * EMPTY unless absolutely necessary — every override here is design debt that
+ * the upstream package should eventually absorb.
+ *
+ * RULE: every override MUST carry a comment with (1) WHAT it overrides,
+ * (2) WHY, and (3) a tracking issue link so it can be removed upstream.
+ *
+ * Template (copy, fill in, uncomment):
+ *
+ *   OVERRIDE: @dbp/ui Button — tighten padding for dense admin tables.
+ *   WHY: shared default is too tall in the 13-row list archetype.
+ *   ISSUE: https://github.com/DQ-SDO/dbp/issues/NNNN
+ *   .dbp-button { padding-block: 0.375rem; }
+ * ========================================================================== */

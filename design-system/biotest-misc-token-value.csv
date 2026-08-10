@@ -1,0 +1,18 @@
+token,value
+radius-xs,2px
+radius-sm,4px
+radius-md,6px
+radius-lg,8px
+radius-xl,12px
+radius-2xl,16px
+radius-3xl,24px
+radius-full,9999px
+motion-duration-instant,0ms
+motion-duration-fast,120ms
+motion-duration-base,200ms
+motion-duration-slow,350ms
+motion-duration-page,450ms
+motion-duration-progress,550ms
+motion-ease-standard,"cubic-bezier(0.2, 0, 0.2, 1)"
+motion-ease-decelerate,"cubic-bezier(0, 0, 0.2, 1)"
+motion-ease-accelerate,"cubic-bezier(0.4, 0, 1, 1)"

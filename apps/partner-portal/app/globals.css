@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-body: var(--font-public-sans);
+  --font-display: var(--font-manrope);
+}
+
+body {
+  @apply bg-mist text-ink-500;
+}
+
+.container-page {
+  @apply mx-auto w-full max-w-5xl px-6;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-card bg-teal-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-card border border-ink-200 bg-white px-5 py-2.5 text-sm font-semibold text-ink-500 transition hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300;
+}
+
+.field-label {
+  @apply mb-1.5 block text-sm font-medium text-ink-500;
+}
+
+.field-input {
+  @apply w-full rounded-card border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-500 placeholder:text-ink-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide;
+}
+.badge-in-progress {
+  @apply bg-amber-50 text-amber-700;
+}
+.badge-released {
+  @apply bg-emerald-50 text-emerald-700;
+}
+.badge-recapture-requested {
+  @apply bg-red-50 text-red-700;
+}
+.badge-role {
+  @apply bg-ink-50 text-ink-600;
+}
