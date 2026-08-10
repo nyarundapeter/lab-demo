@@ -93,10 +93,14 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
     ],
     "approvedBuilds": [
-      "esbuild"
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
     ]
   },
   "lint-staged": {

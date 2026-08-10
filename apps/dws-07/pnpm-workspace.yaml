@@ -30,3 +30,5 @@ overrides:
   "@dbp/ui": "file:packages/dbp-ui-0.19.2.tgz"
 onlyBuiltDependencies:
   - esbuild
+  - sharp
+  - unrs-resolver
